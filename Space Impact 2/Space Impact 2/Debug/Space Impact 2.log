@@ -1,0 +1,3 @@
+﻿  GunBound.cpp
+f:\dev\space impact 2\space impact 2\gunbound.cpp(38): warning C4305: '+=': truncation from 'double' to 'float'
+  Space Impact 2.vcxproj -> F:\dev\Space Impact 2\Debug\Space Impact 2.exe

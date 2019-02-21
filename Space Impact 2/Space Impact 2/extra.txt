@@ -1,0 +1,274 @@
+
+#define BULLET 1
+#define MISSILE 2
+#define ENEMY 3
+#define PLAYER 4
+#define BOX 5
+#define MEGABULLET 6
+
+class bullet : public entity
+{
+public:
+	bullet(window & wnd, float x, float y, std::vector<std::string> sprite) : entity(wnd, x, y, sprite)
+	{
+		Type = BULLET;
+	}
+	bullet(window & wnd, float x, float y, const char * line) : bullet(wnd, x, y, std::vector<std::string>(1,line))
+	{
+	}
+
+	bool animate()
+	{
+		x += 5.f / FrameRate;
+		if (x > Wnd.getWidth())
+			return true;
+		return false;
+	}
+};
+
+class missile : public entity
+{
+
+public:
+	bool dead = false;
+	int deploy = 3;
+	int side;
+
+	void destroy()
+	{
+		dead = true;
+	}
+
+	missile(window & wnd, float x, float y, std::vector<std::string> sprite) : entity(wnd, x, y, sprite)
+	{
+		Type = MISSILE;
+	}
+	missile(window & wnd, float x, float y, const char * line) : entity(wnd, x, y, line)
+	{
+		Type = MISSILE;
+	}
+	missile(window & wnd, float x, float y, const char * line, int direction) : entity(wnd, x, y, line)
+	{
+		side = direction;
+		Type = MISSILE;
+	}
+	bool animate()
+	{
+		/*y += wave+=wave;
+		if (wave > 2.f)
+			wave = -1.f;
+		else if (wave < -2.f)
+			wave = 1.f;*/
+		if (deploy)
+		{
+			deploy--;
+			y += side;
+			x += .5f;
+		}
+		else
+		{
+			x += 4.f / FrameRate;
+			
+			Sprite.at(0).insert(0, 1, '#');
+		}
+		
+
+		if (x > Wnd.getWidth() || dead)
+			return true;
+		return false;
+	}
+	float wave = 2.f;
+};
+
+class bar : public entity
+{
+public:
+	int* HP;
+	bar(window & wnd, float x, float y, std::vector<std::string> sprite) : entity(wnd, x, y, sprite)
+	{
+		Type = 30;
+	}
+	bar(window & wnd, float x, float y, const char * line) : entity(wnd, x, y, line)
+	{
+		Type = 30;
+	}
+
+	void setHP(int* p)
+	{
+		HP = p;
+	}
+
+	bool animate()
+	{
+		if (*HP < 0)
+			return true;
+		return false;
+	}
+
+};
+
+class enemy : public entity
+{
+public:
+	int Dying = 0;
+	int HP = 5;
+	bar* health;
+
+	static int count;
+	enemy(window & wnd, float x, float y, std::vector<std::string> sprite) : entity(wnd, x, y, sprite)
+	{
+		health = new bar(Wnd, x, y - 1, "#####");
+		health->setHP(&HP);
+		Type = ENEMY;
+		count++;
+	}
+	enemy(window & wnd, float x, float y, const char * line) : entity(wnd, x, y, line)
+	{
+		health = new bar(Wnd, x, y - 1, "=====");
+		health->setHP(&HP);
+		Type = ENEMY;
+		count++;
+	}
+
+	bool animate()
+	{
+		x -= 2.f / FrameRate;
+		health->x = x + 1;
+
+		if (Dying)
+		{
+			if (!--Dying)
+			{
+				return true;
+			}
+		}
+		else if (collide(BULLET, Wnd.pEntityList))
+		{
+			HP--;
+			health->Sprite.at(0).replace(HP, 1, "-");
+			if (HP <= 0)
+			{
+				Sprite = { " @@@ ", "@@@@@", " @@@ " };
+				Dying = 2;
+			}
+		}
+		else if (collide(MEGABULLET, Wnd.pEntityList))
+		{
+			HP -= 2;
+			health->Sprite.at(0).replace(HP < 0 ? 0 : HP, 2, "-");
+			if (HP <= 0)
+			{
+				Sprite = { " @@@ ", "@@@@@", " @@@ " };
+				Dying = 2;
+			}
+		}
+
+		missile* miss = (missile*)collide(Wnd.pEntityList, MISSILE);
+
+		if (miss != NULL)
+		{
+			miss->destroy();
+			HP -= 5;
+			health->Sprite.at(0).replace(5, 5, "-");
+			Sprite = { " @@@ ", "@@@@@", " @@@ " };
+			Dying = 2;
+		}
+		
+
+		if (x + 7 < 0)
+			return true;
+		return false;
+
+	}
+	~enemy()
+	{
+		count--;
+	}
+};
+
+struct megaBullet : public entity
+{
+	megaBullet(window & wnd, float x, float y, std::vector<std::string> sprite) : entity(wnd, x, y, sprite)
+	{
+		Type = MEGABULLET;
+	}
+	megaBullet(window & wnd, float x, float y, const char * line) : entity(wnd, x, y, line)
+	{
+		Type = MEGABULLET;
+	}
+	bool animate()
+	{
+		x += 5.f / FrameRate;
+		if (x > Wnd.getWidth())
+			return true;
+		return false;
+	}
+};
+
+struct player : public entity
+{
+	unsigned int even = 0;
+
+	const char* NormalBullet = "-";
+	const char* MegaBullet = "---=< o";
+
+	unsigned int bulletType = 1;
+
+	player(window & wnd, float x, float y, std::vector<std::string> sprite) : entity(wnd, x, y, sprite)
+	{
+		Type = PLAYER;
+	}
+	player(window & wnd, float x, float y, const char * line) : entity(wnd, x, y, line)
+	{
+		Type = PLAYER;
+	}
+	bool animate()
+	{
+		if (even++ % 2)
+		{
+			if (bulletType == 2)
+			{
+				new megaBullet(Wnd, x + 2, y, MegaBullet);
+				new megaBullet(Wnd, x + 2, y + 2, MegaBullet);
+			}
+			else
+			{
+				new bullet(Wnd, x + 2, y, NormalBullet);
+				new bullet(Wnd, x + 2, y + 2, NormalBullet);
+			}
+		}
+		return false;
+	}
+	void upgradeBullet()
+	{
+		bulletType = 2;
+	}
+};
+
+struct upgradebox : public entity
+{
+	upgradebox(window & wnd, float x, float y, std::vector<std::string> sprite) : entity(wnd, x, y, sprite)
+	{
+		Type = BOX;
+	}
+	upgradebox(window & wnd, float x, float y, const char * line) : entity(wnd, x, y, line)
+	{
+		Type = BOX;
+	}
+	bool animate()
+	{
+		x -= 1.f;
+		player* p = (player*)collide(Wnd.pEntityList, PLAYER);
+		if (p != NULL)
+		{
+			p->upgradeBullet();
+			return true;
+		}
+		return false;
+	}
+};
+
+
+
+
+int enemy::count;
